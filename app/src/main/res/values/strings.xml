@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">Asset Charts</string>
+    <string name="title_activity_login">LoginActivity</string>
+    <string name="prompt_email">Email</string>
+    <string name="prompt_password">Password</string>
+    <string name="action_sign_in">Sign in or register</string>
+    <string name="action_sign_in_short">Sign in</string>
+    <string name="invalid_username">Not a valid username</string>
+    <string name="invalid_password">Password must be >5 characters</string>
+    <string name="login_failed">"Login failed"</string>
+    <string name="enter_your_email">Enter your email</string>
+    <string name="enter_the_password">Enter the password</string>
+    <string name="sign_in">Sign in</string>`
+    <string name="sign_up">Sign up</string>
+    <string name="get_chart">Get chart</string>
+    <string name="sign_out">Sign out</string>
+    <string name="asset_chart">Asset chart</string>
+    <string name="enter_the_interval">Enter the interval</string>
+    <string name="enter_the_asset_s_ticker">Enter the asset\'s ticker</string>
+</resources>
