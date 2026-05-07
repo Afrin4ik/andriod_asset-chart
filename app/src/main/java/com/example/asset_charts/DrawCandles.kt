@@ -34,8 +34,8 @@ private fun CombinedChart.setupChart() {
 }
 
 private fun createLineDataSet(
-    values: List<Double>, // список чисел, которые пойдут на ось Y
-    label: String, // подпись для этой линии (в легенде)
+    values: List<Double>,
+    label: String,
     color: Int // цвет линии (в формате ARGB)
 ): LineDataSet {
     val entries = values.mapIndexedNotNull { index, value ->
