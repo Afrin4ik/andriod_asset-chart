@@ -15,16 +15,15 @@ import java.util.concurrent.TimeUnit
 
 class InvestApiBuilder {
     private fun getInvestApiProps(): Properties {
-        val loader = Thread.currentThread().contextClassLoader // получает ClassLoader текущего потока, чтобы найти ресурсы в resources/
-        val props = Properties() // пустой объект Properties
-        loader?.getResourceAsStream("config.properties")?.use { resourceStream -> // ищет в classpath файл config.properties
-            props.load(resourceStream) // загружает пары ключ=значение из потока
+        val loader = Thread.currentThread().contextClassLoader
+        val props = Properties()
+        loader?.getResourceAsStream("config.properties")?.use { resourceStream ->
+            props.load(resourceStream)
         }
         Log.w("InvestApiProps", props.toString())
         return props
     }
 
-    // Этот перехватчик (ClientInterceptor) добавляет индивидуальный таймаут на каждый unary вызов (одно запрос‑одно ответ)
     @Suppress("NAME_SHADOWING")
     internal class TimeoutInterceptor(private val timeout: Duration) : ClientInterceptor {
         override fun <ReqT, RespT> interceptCall(
@@ -33,34 +32,34 @@ class InvestApiBuilder {
             next: io.grpc.Channel
         ): ClientCall<ReqT, RespT> {
             var callOptions = callOptions
-            if (method.type == MethodDescriptor.MethodType.UNARY) { // если метод — UNARY (не стриминговый), то ...
+            if (method.type == MethodDescriptor.MethodType.UNARY) {
                 callOptions =
-                    callOptions.withDeadlineAfter(timeout.toMillis(), TimeUnit.MILLISECONDS) // создаёт новую копию CallOptions с установленным временем ожидания timeout в миллисекундах
+                    callOptions.withDeadlineAfter(timeout.toMillis(), TimeUnit.MILLISECONDS)
             }
-            return next.newCall(method, callOptions) // пропускает вызов дальше по цепочке с обновлёнными опциями
+            return next.newCall(method, callOptions)
         }
     }
 
     private fun makeChannel(token: String, appName: String): io.grpc.Channel {
-        val props = getInvestApiProps() // загружаем настройки из config.properties
+        val props = getInvestApiProps()
 
-        val headers = io.grpc.Metadata() // создаём пустой объект Metadata
-        addAuthHeader(headers, token) // добавляем токен
-        addAppNameHeader(headers, appName) // добавляем пользовательский заголовок с именем приложения
+        val headers = io.grpc.Metadata()
+        addAuthHeader(headers, token)
+        addAppNameHeader(headers, appName)
 
         val requestTimeout = Duration.parse(props.getProperty("ru.tinkoff.piapi.core.request-timeout"))
         return OkHttpChannelBuilder
-            .forTarget("invest-public-api.tinkoff.ru:443") // цель gRPC (хост и порт)
+            .forTarget("invest-public-api.tinkoff.ru:443")
             .intercept(
-                io.grpc.stub.MetadataUtils.newAttachHeadersInterceptor(headers), // автоматически прикрепляет метаданные (заголовки) ко всем вызовам
-                TimeoutInterceptor(requestTimeout)) // каждый unary‑запрос с нужным таймаутом
-            .useTransportSecurity() //  включаем TLS
-            .keepAliveTimeout(10, TimeUnit.SECONDS) // таймаут между keep‑alive пингами (10 с)
-            .maxInboundMessageSize(16777216) // максимальный размер входящего сообщения 16MB
-            .build() as io.grpc.Channel // строим канал и приводим к io.grpc.Channel
+                io.grpc.stub.MetadataUtils.newAttachHeadersInterceptor(headers),
+                TimeoutInterceptor(requestTimeout))
+            .useTransportSecurity()
+            .keepAliveTimeout(10, TimeUnit.SECONDS)
+            .maxInboundMessageSize(16777216)
+            .build() as io.grpc.Channel
     }
 
     fun create(token: String): InvestApi {
-        return InvestApi.create(makeChannel(token, "Asset_Charts")) // строит высокоуровневый клиент, готовый делать запросы к API
+        return InvestApi.create(makeChannel(token, "Asset_Charts"))
     }
 }

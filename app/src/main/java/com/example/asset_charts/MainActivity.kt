@@ -23,26 +23,26 @@ import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var api: InvestApi // клиент Тинькофф API (будет инициализирован в onCreate)
-    private lateinit var database: FirebaseDatabase // ссылка на Firebase Realtime Database
-    private lateinit var auth: FirebaseAuth // объект авторизации Firebase
+    private lateinit var api: InvestApi
+    private lateinit var database: FirebaseDatabase
+    private lateinit var auth: FirebaseAuth
 
     private fun getCandlesApi(figi: String, interval: CandleInterval): List<Candle> {
         val candlesDay = api.marketDataService
-            .getCandlesSync( // возвращает список gRPC‑объектов, которые мы преобразуем в наш data class Candle
+            .getCandlesSync(
                 figi,
-                Instant.now().minusSeconds(60*60*24*30), // запрашивает свечи за последние 30 дней
-                Instant.now(), // метка времени сейчас
+                Instant.now().minusSeconds(60*60*24*30),
+                Instant.now(),
                 interval
             )
         Log.w("info candles", "получено ${candlesDay.size} 1-дневных свечей для инструмента с figi $figi".format(candlesDay.size, figi))
 
-        return candlesDay.map { it -> Candle(it) }.toList() // преобразует в data class Candle
+        return candlesDay.map { it -> Candle(it) }.toList()
     }
 
     @SuppressLint("SetTextI18n")
     private fun getCandles(figi: String, interval: CandleInterval, saveToHistory: Boolean = true) {
-        val candlesRef = database.reference.child("Candles").child(figi).child(interval.toString()) // Пытаемся прочитать свечи из Firebase по пути /Candles/{figi}/{interval}
+        val candlesRef = database.reference.child("Candles").child(figi).child(interval.toString())
 
         candlesRef.get()
             .addOnSuccessListener {
@@ -88,28 +88,24 @@ class MainActivity : AppCompatActivity() {
         figi: String,
         interval: CandleInterval
     ) {
-        val user = auth.currentUser ?: return // Получаем текущего авторизованного пользователя
-        val userId = user.uid // ID текущего пользователя
-        val email = user.email ?: "no_email" // email текущего пользователя
+        val user = auth.currentUser ?: return
+        val userId = user.uid
+        val email = user.email ?: "no_email"
 
-        // Базовая ссылка на узел пользователя
         val baseRef = database.reference
             .child("UsersRequests")
-            .child(userId) // Добавляется путь UsersRequests/{userId} для хранения запросов пользователя
+            .child(userId)
 
-        baseRef.child("email").setValue(email) // Сохраняется email пользователя в узле email
+        baseRef.child("email").setValue(email)
 
-        // Форматирование даты для ключа запроса
-        val now = Date() // Создается текущая дата/время
-        val requestDateFormatter = SimpleDateFormat("dd-MM-yyyy_HH-mm-ss", Locale.getDefault()) // Форматируется в строку вида "день-месяц-год_часы-минуты-секунды"
+        val now = Date()
+        val requestDateFormatter = SimpleDateFormat("dd-MM-yyyy_HH-mm-ss", Locale.getDefault())
         val requestDateKey = requestDateFormatter.format(now)
 
-        // Ветка запроса
         val requestRef = baseRef
             .child("RequestsHistory")
-            .child(requestDateKey) // Создается путь UsersRequests/{userId}/RequestsHistory/{requestDateKey}
+            .child(requestDateKey)
 
-        // Преобразуем enum-интервал в строку
         val intervalStr = when (interval) {
             CandleInterval.CANDLE_INTERVAL_HOUR   -> "1 hour"
             CandleInterval.CANDLE_INTERVAL_4_HOUR -> "4 hour"
@@ -118,14 +114,13 @@ class MainActivity : AppCompatActivity() {
             else -> interval.toString()
         }
 
-        requestRef.child("FIGI").setValue(figi) // сохраняем FIGI инструмента
-        requestRef.child("Interval").setValue(intervalStr) // сохраняем интервал свечей
+        requestRef.child("FIGI").setValue(figi)
+        requestRef.child("Interval").setValue(intervalStr)
 
-        // Сохраняем свечи с читаемыми датами
         val candlesNode = requestRef.child("Candles")
 
         for (c in candles) {
-            val candleTime = c.time * 1000L  // конвертируем секунды в мс (если c.time в секундах)
+            val candleTime = c.time * 1000L
             val candleDate = Date(candleTime)
             val candleKey = SimpleDateFormat("dd-MM-yyyy_HH-mm-ss", Locale.getDefault()).format(candleDate)
 
@@ -135,41 +130,17 @@ class MainActivity : AppCompatActivity() {
                 "low"    to c.low,
                 "high"   to c.high,
                 "volume" to c.volume,
-                "timestamp" to c.time  // сохраняем исходный timestamp
+                "timestamp" to c.time
             )
 
             candlesNode.child(candleKey).setValue(data)
         }
 
-        // Обновляем последний запрос LastRequest
         val lastRequestRef = baseRef.child("LastRequest")
         lastRequestRef.child("figi").setValue(figi)
         lastRequestRef.child("interval").setValue(interval)
     }
 
-// нигде не используется (это вспомогательная функция для логирования данных свечи в конслоль Logcat; для валидации свечей)
-//    private fun printCandle(candle: HistoricCandle) {
-//        val open = quotationToBigDecimal(candle.open)
-//        val close = quotationToBigDecimal(candle.close)
-//        val high = quotationToBigDecimal(candle.high)
-//        val low = quotationToBigDecimal(candle.low)
-//        val volume = candle.volume
-//        val time = timestampToString(candle.time)
-//        Log.w( "candle",
-//            "цена открытия: $open, цена закрытия: $close, минимальная цена за 1 лот: $low, максимальная цена за 1 лот: $high, объем "
-//                    + "торгов в лотах: $volume, время свечи: $time".format(
-//                open,
-//                close,
-//                low,
-//                high,
-//                volume,
-//                time
-//            )
-//        )
-//        Log.w("info candles", high.toString())
-//    }
-
-    // Читает из Firebase последний запрос пользователя и показывает его, если он есть
     private fun onUserChanged() {
         val userId = auth.currentUser?.uid ?: return
         database.reference.child("UsersRequests").child(userId).child("LastRequest").get().addOnSuccessListener {
@@ -178,22 +149,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("SetTextI18n") // Подавляем предупреждения о конкатенации строк
-    // onCreate - ключевой метод жизненного цикла Activity. Система Android вызывает его в момент создания экрана
+    @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState) // вызывает реализацию базового класса
-        setContentView(R.layout.activity_main) // «Надёргивает» XML‑разметку activity_main.xml из папки res/layout и рисует интерфейс на экране
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-        // Загружаем API token из BuildConfig (установлен в build.gradle.kts из keystore.properties)
         val TOKEN = BuildConfig.TINKOFF_API_TOKEN
 
-        api = InvestApiBuilder().create(TOKEN) // Создаём клиента Tinkoff API
-        FirebaseApp.initializeApp(this) // Инициализация firebase
-        database = FirebaseDatabase.getInstance("https://assetcharts-default-rtdb.firebaseio.com/") // Получаем инстанс (экземпляр) бд
-        auth = FirebaseAuth.getInstance() // Получаем инстанс (экземпляр) авторизации
+        api = InvestApiBuilder().create(TOKEN)
+        FirebaseApp.initializeApp(this)
+        database = FirebaseDatabase.getInstance("https://assetcharts-default-rtdb.firebaseio.com/")
+        auth = FirebaseAuth.getInstance()
 
         val currentUser = auth.currentUser
-        if (currentUser == null) { // Если нет залогиненного пользователя, переходим на экран логининга
+        if (currentUser == null) {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
             return
@@ -201,19 +170,16 @@ class MainActivity : AppCompatActivity() {
 
         Log.w("user", currentUser?.email ?: "no email")
 
-        // Кнопка "Выйти"
         findViewById<Button>(R.id.sign_out).setOnClickListener {
             auth.signOut()
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
         }
 
-        // Кнопка "Получить график"
         findViewById<Button>(R.id.get).setOnClickListener {
             val figiName = findViewById<EditText>(R.id.figi).text.toString().lowercase()
             val intervalStr = findViewById<EditText>(R.id.interval).text.toString()
 
-            // Проверяем, есть ли такие ключи в ChartsData
             if (!ChartsData.FIGIs.containsKey(figiName) && !ChartsData.TimeFrame.containsKey(intervalStr)) {
                 findViewById<TextView>(R.id.result).text = "The ticker and interval are entered incorrectly!"
             } else if (!ChartsData.FIGIs.containsKey(figiName)) {
@@ -227,6 +193,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        onUserChanged() // Загружаем последний запрос пользователя (если был) (автоматически подгружает график последнего запроса при старте)
+        onUserChanged()
     }
 }

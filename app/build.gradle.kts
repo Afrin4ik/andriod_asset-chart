@@ -6,7 +6,6 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-// Load secrets from keystore.properties
 val keystoreFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties()
 if (keystoreFile.exists()) {
@@ -25,8 +24,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
-        // Добавляем Tinkoff API token как BuildConfig переменную
+
         val tinkoffToken = keystoreProperties.getProperty("TINKOFF_API_TOKEN", "")
         buildConfigField("String", "TINKOFF_API_TOKEN", "\"$tinkoffToken\"")
     }

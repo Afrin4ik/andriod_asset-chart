@@ -7,11 +7,6 @@
     tools:context=".MainActivity"
     android:orientation="vertical" >
 
-<!--    <TextView-->
-<!--        android:text="In the first input line you can choose: sber, ibm, apple\nIn the second input line you can choose: 1h, 4h, 1d, 1M"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="wrap_content" />-->
-
     <EditText
         android:id="@+id/figi"
         android:hint="@string/enter_the_asset_s_ticker"
